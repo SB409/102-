@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영화 티어리스트 메이커</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .tier-row { min-height: 90px; }
+        .movie-card { cursor: grab; }
+        .movie-card:active { cursor: grabbing; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <header class="bg-gray-800 border-b border-gray-700 py-4 px-6 shadow-md flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-amber-400 flex items-center gap-2">
+            🎬 영화 티어리스트 메이커
+        </h1>
+        <div class="flex gap-3">
+            <button onclick="openAddMovieModal()" class="bg-amber-500 hover:bg-amber-600 text-gray-950 font-semibold px-4 py-2 rounded-lg transition">
+                + 영화 추가
+            </button>
+            <button onclick="resetTierList()" class="bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2 rounded-lg transition">
+                초기화
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- 티어리스트 영역 (3 컬럼 폭) -->
+        <div class="lg:col-span-3 space-y-4">
+            <h2 class="text-xl font-semibold mb-2 text-gray-200">나만의 티어리스트</h2>
+            
+            <div id="tier-container" class="space-y-3">
+                <!-- S 티어 -->
+                <div class="flex border border-gray-700 rounded-lg overflow-hidden bg-gray-800 shadow">
+                    <div class="w-24 bg-red-600 font-bold flex items-center justify-center text-xl text-white">S</div>
+                    <div class="flex-1 p-3 flex flex-wrap gap-3 tier-dropzone min-h-[90px]" data-tier="S" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
+                </div>
+                <!-- A 티어 -->
+                <div class="flex border border-gray-700 rounded-lg overflow-hidden bg-gray-800 shadow">
+                    <div class="w-24 bg-orange-500 font-bold flex items-center justify-center text-xl text-white">A</div>
+                    <div class="flex-1 p-3 flex flex-wrap gap-3 tier-dropzone min-h-[90px]" data-tier="A" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
+                </div>
+                <!-- B 티어 -->
+                <div class="flex border border-gray-700 rounded-lg overflow-hidden bg-gray-800 shadow">
+                    <div class="w-24 bg-yellow-500 font-bold flex items-center justify-center text-xl text-gray-950">B</div>
+                    <div class="flex-1 p-3 flex flex-wrap gap-3 tier-dropzone min-h-[90px]" data-tier="B" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
+                </div>
+                <!-- C 티어 -->
+                <div class="flex border border-gray-700 rounded-lg overflow-hidden bg-gray-800 shadow">
+                    <div class="w-24 bg-green-500 font-bold flex items-center justify-center text-xl text-gray-950">C</div>
+                    <div class="flex-1 p-3 flex flex-wrap gap-3 tier-dropzone min-h-[90px]" data-tier="C" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
+                </div>
+                <!-- D 티어 -->
+                <div class="flex border border-gray-700 rounded-lg overflow-hidden bg-gray-800 shadow">
+                    <div class="w-24 bg-blue-500 font-bold flex items-center justify-center text-xl text-white">D</div>
+                    <div class="flex-1 p-3 flex flex-wrap gap-3 tier-dropzone min-h-[90px]" data-tier="D" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 미배치 영화 풀 영역 (1 컬럼 폭) -->
+        <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 flex flex-col h-[650px]">
+            <h2 class="text-xl font-semibold mb-3 text-gray-200 border-b border-gray-700 pb-2">영화 목록 (대기소)</h2>
+            <div id="movie-pool" class="flex-1 overflow-y-auto space-y-3 pr-1 tier-dropzone" data-tier="pool" ondragover="allowDrop(event)" ondrop="drop(event)">
+                <!-- 동적으로 영화 카드 생성 -->
+            </div>
+        </div>
+    </main>
+
+    <!-- 영화 추가 모달 -->
+    <div id="movie-modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6 relative shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-amber-400">영화 추가하기</h3>
+            <form id="movie-form" onsubmit="handleMovieSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">영화 제목</label>
+                    <input type="text" id="input-title" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="예: 인셉션">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">포스터 이미지 URL</label>
+                    <input type="url" id="input-poster" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="https://example.com/poster.jpg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">평점 (1 ~ 10)</label>
+                    <input type="number" id="input-rating" min="1" max="10" step="0.1" required class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="9.2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">한줄평 / 설명</label>
+                    <textarea id="input-desc" rows="2" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500" placeholder="영화에 대한 간단한 소감"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-gray-200 transition">취소</button>
+                    <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-gray-950 font-semibold px-4 py-2 rounded-lg transition">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 영화 상세 보기 모달 -->
+    <div id="detail-modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl max-w-sm w-full p-6 relative shadow-2xl text-center">
+            <img id="detail-poster" src="" alt="포스터" class="w-48 h-72 object-cover mx-auto rounded-lg shadow-md mb-4">
+            <h3 id="detail-title" class="text-2xl font-bold text-white mb-2"></h3>
+            <p id="detail-rating" class="text-amber-400 font-semibold mb-2"></p>
+            <p id="detail-desc" class="text-gray-300 text-sm mb-6"></p>
+            <button onclick="closeDetailModal()" class="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg text-white transition w-full">닫기 (ESC)</button>
+        </div>
+    </div>
+
+    <script>
+        // 초기 샘플 영화 데이터 (파 프롬 홈 단독 포스터로 수정 완료)
+        let movies = [
+            { id: '1', title: '인셉션', poster: 'https://image.tmdb.org/t/p/w500/edv5CZvWj09upOsy2Y6IwDhK8bt.jpg', rating: 9.3, desc: '꿈 속의 꿈, 완벽한 하이스트 무비', tier: 'pool' },
+            { id: '2', title: '인터스텔라', poster: 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', rating: 9.5, desc: '시공간을 초월한 사랑과 과학', tier: 'pool' },
+            { id: '3', title: '다크 나이트', poster: 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg', rating: 9.7, desc: '역대 최고의 히어로 영화', tier: 'pool' },
+            { id: '4', title: '파 프롬 홈', poster: 'https://image.tmdb.org/t/p/w500/4q2NNj4S5dG2RLF9CpXsej7yXl.jpg', rating: 7.5, desc: '가벼운 즐거움이 있는 마블 영화', tier: 'pool' },
+            { id: '5', title: '어벤져스: 엔드게임', poster: 'https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg', rating: 9.4, desc: '어벤져스 대장정의 웅장한 피날레', tier: 'pool' },
+            { id: '6', title: '기생충', poster: 'https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg', rating: 9.6, desc: '전 세계를 매료시킨 봉준호 감독의 명작', tier: 'pool' },
+            { id: '7', title: '타이타닉', poster: 'https://image.tmdb.org/t/p/w500/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg', rating: 8.9, desc: '광활한 바다 위에서 피어난 영원한 사랑', tier: 'pool' },
+            { id: '8', title: '스파이더맨: 어크로스 더 유니버스', poster: 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', rating: 9.2, desc: '시각적 한계를 뛰어넘은 애니메이션 마스터피스', tier: 'pool' }
+        ];
+
+        function renderMovies() {
+            document.querySelectorAll('.tier-dropzone').forEach(zone => zone.innerHTML = '');
+
+            movies.forEach(movie => {
+                const card = document.createElement('div');
+                card.className = 'movie-card relative group w-20 h-28 bg-gray-700 rounded-lg overflow-hidden shadow-md flex-shrink-0 border border-gray-600';
+                card.draggable = true;
+                card.dataset.id = movie.id;
+                card.ondragstart = drag;
+
+                card.innerHTML = `
+                    <img src="${movie.poster}" alt="${movie.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
+                    <div class="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex flex-col justify-between p-1 text-[10px]">
+                        <span class="font-bold text-amber-300 truncate">${movie.title}</span>
+                        <div class="flex justify-between items-center">
+                            <span class="text-white">⭐${movie.rating}</span>
+                            <button onclick="showDetail('${movie.id}')" class="bg-amber-500 text-gray-950 px-1 rounded hover:bg-amber-400">보기</button>
+                        </div>
+                    </div>
+                `;
+
+                const zone = document.querySelector(`.tier-dropzone[data-tier="${movie.tier}"]`);
+                if (zone) {
+                    zone.appendChild(card);
+                }
+            });
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.dataset.id);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const movieId = ev.dataTransfer.getData("text");
+            const targetZone = ev.target.closest('.tier-dropzone');
+            if (targetZone) {
+                const newTier = targetZone.dataset.tier;
+                const movie = movies.find(m => m.id === movieId);
+                if (movie) {
+                    movie.tier = newTier;
+                    renderMovies();
+                }
+            }
+        }
+
+        function openAddMovieModal() {
+            document.getElementById('movie-modal').classList.remove('hidden');
+            document.getElementById('movie-modal').classList.add('flex');
+        }
+
+        function closeModal() {
+            document.getElementById('movie-modal').classList.add('hidden');
+            document.getElementById('movie-modal').classList.remove('flex');
+            document.getElementById('movie-form').reset();
+        }
+
+        function handleMovieSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('input-title').value;
+            const poster = document.getElementById('input-poster').value;
+            const rating = parseFloat(document.getElementById('input-rating').value);
+            const desc = document.getElementById('input-desc').value;
+
+            const newMovie = {
+                id: Date.now().toString(),
+                title,
+                poster,
+                rating,
+                desc,
+                tier: 'pool'
+            };
+
+            movies.push(newMovie);
+            renderMovies();
+            closeModal();
+        }
+
+        function showDetail(id) {
+            const movie = movies.find(m => m.id === id);
+            if (!movie) return;
+
+            document.getElementById('detail-poster').src = movie.poster;
+            document.getElementById('detail-title').innerText = movie.title;
+            document.getElementById('detail-rating').innerText = `평점: ⭐ ${movie.rating} / 10`;
+            document.getElementById('detail-desc').innerText = movie.desc || '등록된 설명이 없습니다.';
+
+            document.getElementById('detail-modal').classList.remove('hidden');
+            document.getElementById('detail-modal').classList.add('flex');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+            document.getElementById('detail-modal').classList.remove('flex');
+        }
+
+        function resetTierList() {
+            movies.forEach(m => m.tier = 'pool');
+            renderMovies();
+        }
+
+        // ESC 키 입력 시 모달 닫기
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const detailModal = document.getElementById('detail-modal');
+                const movieModal = document.getElementById('movie-modal');
+                if (!detailModal.classList.contains('hidden')) {
+                    closeDetailModal();
+                }
+                if (!movieModal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            }
+        });
+
+        renderMovies();
+    </script>
+</body>
+</html>
